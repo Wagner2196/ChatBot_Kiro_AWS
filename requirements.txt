@@ -1,0 +1,7 @@
+# Dependências do projeto KVN Chatbot
+
+# Flask: framework web que serve a página de chat e expõe as rotas / e /chat
+flask
+
+# boto3: SDK da AWS usado para chamar o Amazon Bedrock (bedrock-runtime) e gerar as respostas
+boto3

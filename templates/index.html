@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<!-- index.html - Interface de chat do KVN, o professor de IA com humor leve. -->
+<!-- Pagina unica e didatica: um campo de texto, um botao de envio e uma area -->
+<!-- que mostra as respostas. O JavaScript conversa com a rota POST /chat. -->
+<!-- Visual: estetica cinematografica de ficcao cientifica (inspirada em Final -->
+<!-- Space), com cenario de nave espacial, nebulosas e brilhos de neon feitos -->
+<!-- somente com CSS (sem imagens externas obrigatorias). -->
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Deixa a pagina responsiva em telas de celular. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KVN — Seu Professor de Inteligência Artificial</title>
+
+  <!-- CSS embutido (inline) para manter o projeto simples, com um unico arquivo. -->
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Variaveis de cor do tema espacial.                                  */
+    /* ------------------------------------------------------------------ */
+    :root {
+      --espaco: #080B20;        /* fundo quase preto azulado (espaco profundo) */
+      --navy: #0e1740;          /* azul marinho dos baloes/cabecalho */
+      --navy-claro: #16224f;    /* azul marinho um pouco mais claro */
+      --ciano: #22e0ff;         /* neon ciano principal */
+      --violeta: #8b5cf6;       /* violeta de destaque */
+      --magenta: #d946ef;       /* magenta/nebulosa */
+      --texto: #e8eeff;         /* texto claro, bem legivel sobre fundo escuro */
+      --texto-suave: #9fb0d8;   /* texto secundario/subtitulos */
+      --borda-violeta: rgba(139, 92, 246, 0.35); /* borda discreta violeta */
+    }
+
+    /* Reset simples para evitar margens/paddings herdados inesperados. */
+    * {
+      box-sizing: border-box;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Estilo geral da pagina: fundo de espaco profundo com brilhos de     */
+    /* nebulosa (azul, violeta, magenta) criados com gradientes radiais.   */
+    /* ------------------------------------------------------------------ */
+    body {
+      font-family: "Segoe UI", Roboto, system-ui, -apple-system, Arial, sans-serif;
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+      color: var(--texto);
+      background-color: var(--espaco);
+      /* Varias camadas de gradiente radial simulam nebulosas difusas. */
+      background-image:
+        radial-gradient(ellipse 60% 50% at 15% 10%, rgba(34, 224, 255, 0.10), transparent 60%),
+        radial-gradient(ellipse 50% 50% at 85% 20%, rgba(139, 92, 246, 0.14), transparent 60%),
+        radial-gradient(ellipse 55% 45% at 75% 85%, rgba(217, 70, 239, 0.10), transparent 60%),
+        radial-gradient(ellipse 50% 50% at 25% 80%, rgba(37, 99, 235, 0.12), transparent 60%),
+        radial-gradient(circle at 50% 40%, #0b1030 0%, #080B20 70%);
+      background-attachment: fixed;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Campo de estrelas: dois pseudo-elementos com muitos pontos (box-shadow) */
+    /* para dar sensacao de profundidade. Puro CSS, sem imagens. */
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      background: transparent;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Estrelas pequenas e numerosas. */
+    body::before {
+      box-shadow:
+        40px 60px #ffffff, 120px 200px #cfe6ff, 300px 90px #ffffff,
+        480px 260px #bcd4ff, 620px 120px #ffffff, 760px 320px #e5f2ff,
+        900px 60px #ffffff, 1040px 240px #cfe6ff, 1180px 160px #ffffff,
+        200px 400px #ffffff, 520px 520px #cfe6ff, 820px 460px #ffffff,
+        1100px 540px #bcd4ff, 1320px 300px #ffffff, 1480px 180px #e5f2ff,
+        80px 620px #ffffff, 360px 700px #cfe6ff, 700px 680px #ffffff,
+        1000px 760px #ffffff, 1260px 660px #cfe6ff, 1440px 720px #ffffff;
+      opacity: 0.9;
+      animation: cintilar 6s ease-in-out infinite alternate;
+    }
+
+    /* Estrelas maiores e mais raras, com leve brilho. */
+    body::after {
+      box-shadow:
+        160px 140px 1px #ffffff, 420px 360px 1px #d6e8ff,
+        680px 220px 1px #ffffff, 980px 420px 1px #cfe6ff,
+        1240px 160px 1px #ffffff, 1400px 500px 1px #d6e8ff,
+        260px 560px 1px #ffffff, 560px 640px 1px #cfe6ff,
+        880px 600px 1px #ffffff, 1160px 700px 1px #d6e8ff;
+      opacity: 0.8;
+      animation: cintilar 9s ease-in-out infinite alternate-reverse;
+    }
+
+    /* Leve cintilar das estrelas (variacao de opacidade). */
+    @keyframes cintilar {
+      from { opacity: 0.5; }
+      to   { opacity: 1; }
+    }
+
+    /* Caixa central que agrupa todo o chat (o "painel" da nave). */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      background: linear-gradient(180deg, rgba(14, 23, 64, 0.92), rgba(8, 11, 32, 0.92));
+      border: 1px solid var(--borda-violeta);
+      border-radius: 18px;
+      box-shadow:
+        0 0 0 1px rgba(34, 224, 255, 0.06),
+        0 20px 60px rgba(0, 0, 0, 0.55),
+        0 0 40px rgba(139, 92, 246, 0.15);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Banner panoramico no topo: composicao espacial feita so com CSS.    */
+    /* Nebulosas, estrelas, brilho de galaxia espiral (canto superior      */
+    /* direito), molduras de painel da nave (ciano/ambar) em cima e baixo. */
+    /* ------------------------------------------------------------------ */
+    .banner {
+      position: relative;
+      height: 200px;
+      overflow: hidden;
+      background-color: #060a1c;
+      background-image:
+        /* galaxia espiral no canto superior direito */
+        radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.55) 0%, rgba(217, 70, 239, 0.35) 8%, rgba(139, 92, 246, 0.15) 18%, transparent 32%),
+        /* nebulosas difusas */
+        radial-gradient(ellipse 40% 60% at 20% 70%, rgba(34, 224, 255, 0.18), transparent 60%),
+        radial-gradient(ellipse 45% 55% at 60% 40%, rgba(139, 92, 246, 0.20), transparent 60%),
+        radial-gradient(ellipse 35% 50% at 95% 80%, rgba(37, 99, 235, 0.18), transparent 60%),
+        /* planeta grande insinuado na borda esquerda */
+        radial-gradient(circle at -8% 60%, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.12) 12%, transparent 22%),
+        /* fundo profundo */
+        linear-gradient(135deg, #0a1030 0%, #060a1c 60%, #0a0f2e 100%);
+    }
+
+    /* Estrelas pontilhadas dentro do banner (camada propria). */
+    .banner::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: transparent;
+      box-shadow:
+        30px 40px #ffffff, 90px 120px #cfe6ff, 180px 30px #ffffff,
+        260px 150px #bcd4ff, 340px 70px #ffffff, 430px 170px #e5f2ff,
+        520px 40px #ffffff, 600px 140px #cfe6ff, 150px 90px #ffffff,
+        410px 120px #ffffff, 560px 100px #d6e8ff, 680px 60px #ffffff;
+      opacity: 0.85;
+    }
+
+    /* Molduras ciano/ambar do painel da nave (faixas em cima e embaixo). */
+    .banner::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(34, 224, 255, 0.35), transparent 14px),
+        linear-gradient(0deg, rgba(251, 191, 36, 0.30), transparent 14px);
+      box-shadow:
+        inset 0 2px 0 rgba(34, 224, 255, 0.55),
+        inset 0 -2px 0 rgba(251, 191, 36, 0.45);
+    }
+
+    /* Logo "KVN" no lado esquerdo do banner: letras grandes, geometricas, */
+    /* metalicas (gradiente branco/azul-claro) com contorno azul-escuro,    */
+    /* brilho ciano e reflexos violeta. */
+    .banner-logo {
+      position: absolute;
+      left: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      font-weight: 900;
+      font-size: 84px;
+      letter-spacing: 6px;
+      line-height: 1;
+      font-family: "Segoe UI", Roboto, system-ui, Arial, sans-serif;
+      /* Preenchimento metalico via gradiente aplicado ao texto. */
+      background: linear-gradient(180deg, #ffffff 0%, #d6ecff 40%, #8fb8ff 70%, #c9b8ff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      /* Contorno azul-escuro + brilho ciano + reflexo violeta. */
+      text-shadow:
+        0 0 1px #0a1740,
+        2px 2px 0 rgba(10, 23, 64, 0.65),
+        0 0 18px rgba(34, 224, 255, 0.65),
+        0 0 36px rgba(139, 92, 246, 0.45);
+      -webkit-text-stroke: 1.5px rgba(10, 23, 64, 0.55);
+    }
+
+    /* Slot do robo no lado direito do banner. Usa /static/kvn-robot.png */
+    /* como imagem de fundo; se ela nao existir, o robo desenhado em CSS   */
+    /* (abaixo) aparece no lugar, sem quebrar o layout. */
+    .banner-robo {
+      position: absolute;
+      right: 36px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      width: 140px;
+      height: 140px;
+      background-image: url("/static/kvn-robot.png");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Robo do KVN desenhado inteiramente com CSS (fallback visual).       */
+    /* Corpo esferico amarelo/branco, um olho central grande com anel de   */
+    /* grafite e pupila preta quadrada, antena vermelha curva com ponta    */
+    /* em bolinha e um brilho ciano por baixo.                             */
+    /* ------------------------------------------------------------------ */
+    .robo-css {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      /* corpo esferico amarelo/branco com leve volume */
+      background:
+        radial-gradient(circle at 35% 30%, #fff8e1 0%, #ffe27a 45%, #f4c430 80%, #d9a516 100%);
+      box-shadow:
+        inset -8px -10px 18px rgba(130, 90, 0, 0.35),
+        inset 6px 6px 14px rgba(255, 255, 255, 0.6),
+        0 10px 24px rgba(0, 0, 0, 0.45),
+        0 0 26px rgba(34, 224, 255, 0.35); /* brilho ciano ao redor */
+    }
+
+    /* Brilho ciano concentrado por baixo do robo. */
+    .robo-css::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -14px;
+      transform: translateX(-50%);
+      width: 70%;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at center, rgba(34, 224, 255, 0.55), transparent 70%);
+      filter: blur(2px);
+    }
+
+    /* Olho central: anel de grafite + "lente" com pupila quadrada preta. */
+    .robo-css .olho {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #f5f7fb 0%, #c7ccd6 60%, #8a909c 100%);
+      border: 6px solid #3a3f4a; /* anel de grafite */
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Pupila quadrada preta no centro do olho. */
+    .robo-css .pupila {
+      width: 16px;
+      height: 16px;
+      background: #0a0a0a;
+      border-radius: 3px;
+      box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.25) inset;
+    }
+
+    /* Antena vermelha curva com ponta em bolinha. */
+    .robo-css .antena {
+      position: absolute;
+      left: 50%;
+      top: -22px;
+      width: 4px;
+      height: 26px;
+      background: #e11d48;
+      border-radius: 4px;
+      transform: translateX(-50%) rotate(14deg);
+      transform-origin: bottom center;
+    }
+    .robo-css .antena::before {
+      content: "";
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ff8097, #e11d48 70%);
+      box-shadow: 0 0 8px rgba(225, 29, 72, 0.7);
+    }
+
+    /* Quando o robo aparece dentro do banner (versao maior). */
+    .banner-robo .robo-css {
+      width: 130px;
+      height: 130px;
+    }
+    .banner-robo .robo-css .olho {
+      width: 66px;
+      height: 66px;
+    }
+    .banner-robo .robo-css .pupila {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Cabecalho: fundo azul-marinho, avatar pequeno do robo, nome "KVN"   */
+    /* em destaque e o subtitulo.                                          */
+    /* ------------------------------------------------------------------ */
+    .cabecalho {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 24px;
+      background: linear-gradient(180deg, var(--navy), var(--navy-claro));
+      border-bottom: 1px solid var(--borda-violeta);
+    }
+
+    /* Avatar pequeno do robo no cabecalho (imagem com fallback CSS). */
+    .avatar {
+      flex: 0 0 auto;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-image: url("/static/kvn-robot.png");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(34, 224, 255, 0.25);
+    }
+
+    /* Robo CSS reduzido para caber no avatar do cabecalho. */
+    .avatar .robo-css {
+      width: 52px;
+      height: 52px;
+    }
+    .avatar .robo-css .olho {
+      width: 28px;
+      height: 28px;
+      border-width: 4px;
+    }
+    .avatar .robo-css .pupila {
+      width: 9px;
+      height: 9px;
+    }
+    .avatar .robo-css .antena {
+      top: -12px;
+      height: 14px;
+    }
+
+    .cabecalho-textos {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    h1 {
+      font-size: 26px;
+      margin: 0;
+      letter-spacing: 3px;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 0 14px rgba(34, 224, 255, 0.5);
+    }
+
+    .subtitulo {
+      margin: 2px 0 0 0;
+      color: var(--texto-suave);
+      font-size: 14px;
+    }
+
+    /* Area util (conversa + entrada) com um respiro interno. */
+    .painel {
+      padding: 20px 24px 24px 24px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Area onde as mensagens (do usuario e do KVN) sao exibidas.          */
+    /* ------------------------------------------------------------------ */
+    #conversa {
+      border: 1px solid var(--borda-violeta);
+      border-radius: 14px;
+      padding: 14px;
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+      background: linear-gradient(180deg, rgba(6, 10, 28, 0.9), rgba(10, 16, 46, 0.9));
+      box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Cada bloco de mensagem exibido na conversa. */
+    .mensagem {
+      margin: 10px 0;
+      padding: 11px 14px;
+      border-radius: 12px;
+      white-space: pre-wrap; /* preserva quebras de linha da resposta */
+      line-height: 1.5;
+      max-width: 85%;
+      word-wrap: break-word;
+    }
+
+    /* Mensagem enviada pelo usuario: balao azul-eletrico/violeta, a direita. */
+    .mensagem.usuario {
+      background: linear-gradient(135deg, #2563eb, #6d28d9);
+      color: #ffffff;
+      text-align: right;
+      margin-left: auto;
+      border: 1px solid rgba(34, 224, 255, 0.35);
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+    }
+
+    /* Resposta do KVN: balao azul-marinho, texto branco, borda sutil. */
+    .mensagem.kvn {
+      background: linear-gradient(135deg, var(--navy), var(--navy-claro));
+      color: var(--texto);
+      border: 1px solid var(--borda-violeta);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Mensagem de erro (ex.: falha na geracao da resposta): avermelhada, */
+    /* ainda legivel sobre o tema escuro. */
+    .mensagem.erro {
+      background: linear-gradient(135deg, #7f1d1d, #b91c1c);
+      color: #ffe4e6;
+      border: 1px solid rgba(248, 113, 113, 0.5);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Indicador "KVN esta pensando..." com tres pontinhos brilhantes.     */
+    /* Fica escondido por padrao; o JS o exibe durante a requisicao.       */
+    /* ------------------------------------------------------------------ */
+    #carregando {
+      display: none; /* oculto por padrao */
+      align-items: center;
+      gap: 10px;
+      margin: 4px 2px 12px 2px;
+      color: var(--texto-suave);
+      font-size: 14px;
+    }
+
+    /* Quando o JS adiciona a classe "ativo", o indicador aparece. */
+    #carregando.ativo {
+      display: flex;
+    }
+
+    .pontos {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .pontos span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ciano);
+      box-shadow: 0 0 10px rgba(34, 224, 255, 0.8);
+      animation: pulsar 1.2s ease-in-out infinite;
+    }
+    .pontos span:nth-child(2) { animation-delay: 0.2s; }
+    .pontos span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes pulsar {
+      0%, 100% { transform: scale(0.6); opacity: 0.4; }
+      50%      { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Linha com o campo de texto e o botao de envio.                      */
+    /* ------------------------------------------------------------------ */
+    .entrada {
+      display: flex;
+      gap: 10px;
+    }
+
+    #campoMensagem {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--borda-violeta);
+      border-radius: 12px;
+      font-size: 15px;
+      resize: vertical;
+      min-height: 46px;
+      background-color: rgba(6, 10, 28, 0.9);
+      color: var(--texto);
+      font-family: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #campoMensagem::placeholder {
+      color: var(--texto-suave);
+    }
+
+    /* Borda ciano ao focar o campo. */
+    #campoMensagem:focus {
+      outline: none;
+      border-color: var(--ciano);
+      box-shadow: 0 0 0 3px rgba(34, 224, 255, 0.2);
+    }
+
+    /* Botao de envio: neon ciano, cantos arredondados, hover suave. */
+    #botaoEnviar {
+      padding: 12px 22px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #22e0ff, #2563eb);
+      color: #04121f;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: 0 0 18px rgba(34, 224, 255, 0.45);
+      transition: transform 0.12s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    #botaoEnviar:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 26px rgba(34, 224, 255, 0.7);
+    }
+
+    #botaoEnviar:active {
+      transform: translateY(0);
+    }
+
+    /* Aparencia do botao enquanto estiver desabilitado (durante o envio). */
+    #botaoEnviar:disabled {
+      background: linear-gradient(135deg, #3a5f7a, #334a7a);
+      color: #9fb0d8;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Responsividade: adapta banner, logo, cabecalho e entrada em telas   */
+    /* menores.                                                            */
+    /* ------------------------------------------------------------------ */
+    @media (max-width: 560px) {
+      body {
+        padding: 12px;
+      }
+
+      .banner {
+        height: 150px;
+      }
+
+      .banner-logo {
+        font-size: 52px;
+        left: 18px;
+        letter-spacing: 3px;
+      }
+
+      .banner-robo {
+        right: 16px;
+        width: 92px;
+        height: 92px;
+      }
+
+      .banner-robo .robo-css {
+        width: 86px;
+        height: 86px;
+      }
+      .banner-robo .robo-css .olho {
+        width: 44px;
+        height: 44px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .subtitulo {
+        font-size: 13px;
+      }
+
+      .painel {
+        padding: 16px;
+      }
+
+      /* Empilha campo e botao para nao apertar a linha de entrada. */
+      .entrada {
+        flex-direction: column;
+      }
+
+      #botaoEnviar {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Banner panoramico espacial: logo "KVN" a esquerda e o robo a direita. -->
+    <div class="banner">
+      <!-- Logo grande e metalico do KVN. -->
+      <div class="banner-logo">KVN</div>
+
+      <!-- Slot do robo (imagem /static/kvn-robot.png). Caso a imagem nao -->
+      <!-- exista, o robo desenhado em CSS abaixo aparece como fallback. -->
+      <div class="banner-robo">
+        <div class="robo-css" aria-hidden="true">
+          <span class="antena"></span>
+          <span class="olho"><span class="pupila"></span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cabecalho: avatar pequeno, nome do KVN e subtitulo. -->
+    <div class="cabecalho">
+      <!-- Avatar pequeno (imagem com fallback do robo CSS). -->
+      <div class="avatar">
+        <div class="robo-css" aria-hidden="true">
+          <span class="antena"></span>
+          <span class="olho"><span class="pupila"></span></span>
+        </div>
+      </div>
+      <div class="cabecalho-textos">
+        <h1>KVN</h1>
+        <p class="subtitulo">Seu Professor de Inteligência Artificial</p>
+      </div>
+    </div>
+
+    <!-- Painel util: area de conversa, indicador de carregamento e entrada. -->
+    <div class="painel">
+      <!-- Area onde as mensagens da conversa serao exibidas. -->
+      <div id="conversa"></div>
+
+      <!-- Indicador "KVN esta pensando...": escondido ate o JS exibi-lo. -->
+      <div id="carregando">
+        <span>KVN está pensando</span>
+        <span class="pontos"><span></span><span></span><span></span></span>
+      </div>
+
+      <!-- Linha de entrada: campo de texto + botao de envio. -->
+      <div class="entrada">
+        <!-- Campo de texto da mensagem. O atributo maxlength="2000" impede que o -->
+        <!-- usuario digite mais do que 2000 caracteres (limite de 1 a 2000). -->
+        <textarea
+          id="campoMensagem"
+          maxlength="2000"
+          placeholder="Pergunte algo ao KVN..."
+        ></textarea>
+
+        <!-- Botao que dispara o envio da mensagem. -->
+        <button id="botaoEnviar" type="button">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript embutido para manter o projeto simples (um unico arquivo). -->
+  <script>
+    // Referencias aos elementos da pagina que vamos usar.
+    const campoMensagem = document.getElementById("campoMensagem");
+    const botaoEnviar = document.getElementById("botaoEnviar");
+    const conversa = document.getElementById("conversa");
+    // Indicador visual "KVN esta pensando..." (apenas efeito de interface).
+    const carregando = document.getElementById("carregando");
+
+    // Adiciona uma mensagem na area de conversa.
+    // - texto: conteudo a exibir;
+    // - tipo: "usuario", "kvn" ou "erro" (define a cor/estilo do bloco).
+    function adicionarMensagem(texto, tipo) {
+      const div = document.createElement("div");
+      div.className = "mensagem " + tipo;
+      // Usamos textContent (e nao innerHTML) para exibir o texto como texto
+      // puro, evitando que conteudo seja interpretado como HTML.
+      div.textContent = texto;
+      conversa.appendChild(div);
+      // Rola a area de conversa para mostrar sempre a mensagem mais recente.
+      conversa.scrollTop = conversa.scrollHeight;
+    }
+
+    // Funcao principal: envia a mensagem digitada para a rota POST /chat.
+    async function enviarMensagem() {
+      // Le o texto digitado e remove espacos das pontas para checar se ha
+      // conteudo real. Isso impede o envio quando o campo esta vazio (0
+      // caracteres) ou contem apenas espacos: nesse caso, nao disparamos o
+      // fetch e simplesmente encerramos a funcao.
+      const mensagem = campoMensagem.value.trim();
+      if (mensagem.length === 0) {
+        return;
+      }
+
+      // Mostra a mensagem do usuario na conversa e limpa o campo de texto.
+      adicionarMensagem(mensagem, "usuario");
+      campoMensagem.value = "";
+
+      // Desabilita o botao durante o envio para evitar cliques repetidos.
+      botaoEnviar.disabled = true;
+      // Exibe o indicador "KVN esta pensando..." enquanto esperamos a resposta.
+      carregando.classList.add("ativo");
+
+      try {
+        // Envia a mensagem para a rota /chat via POST, com corpo JSON no
+        // formato { "message": "..." } e cabecalho indicando conteudo JSON.
+        const resposta = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: mensagem }),
+        });
+
+        // Interpreta o corpo da resposta como JSON.
+        const dados = await resposta.json();
+
+        // Em caso de sucesso (status 200), o backend devolve o texto no campo
+        // `reply`; exibimos esse conteudo como mensagem do KVN.
+        if (resposta.ok) {
+          adicionarMensagem(dados.reply, "kvn");
+        } else {
+          // Em caso de falha (ex.: 400 ou 500), o backend devolve o campo
+          // `error` com uma mensagem legivel; exibimos essa mensagem de erro.
+          adicionarMensagem(dados.error, "erro");
+        }
+      } catch (e) {
+        // Falha de rede ou resposta inesperada (ex.: servidor fora do ar).
+        // Mostramos uma mensagem de erro generica para o usuario.
+        adicionarMensagem(
+          "Nao foi possivel contatar o servidor. Tente novamente.",
+          "erro"
+        );
+      } finally {
+        // Esconde o indicador "KVN esta pensando...", reabilita o botao e
+        // devolve o foco ao campo, independentemente do resultado, para que o
+        // usuario possa enviar a proxima mensagem.
+        carregando.classList.remove("ativo");
+        botaoEnviar.disabled = false;
+        campoMensagem.focus();
+      }
+    }
+
+    // Dispara o envio ao clicar no botao.
+    botaoEnviar.addEventListener("click", enviarMensagem);
+
+    // Atalho: envia ao pressionar Enter (sem Shift). Shift+Enter continua
+    // servindo para quebrar linha dentro do campo de texto.
+    campoMensagem.addEventListener("keydown", function (evento) {
+      if (evento.key === "Enter" && !evento.shiftKey) {
+        evento.preventDefault();
+        enviarMensagem();
+      }
+    });
+  </script>
+</body>
+</html>
