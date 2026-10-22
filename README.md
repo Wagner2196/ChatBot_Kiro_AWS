@@ -93,4 +93,4 @@ Aula2Kiro/
 
 ## Demonstração
 
-[inserir demo aqui]
+https://github.com/Wagner2196/ChatBot_Kiro_AWS/issues/1
